@@ -9,8 +9,12 @@ import glob
 
 environment_bp = Blueprint('environment', __name__)
 
-# Dossier principal contenant tous les fichiers
-DATA_DIR = "data"
+# Dossiers possibles pour les fichiers (ordre de priorité)
+DATA_DIRS = ["data", "data_drive"]
+
+# URL du dossier Google Drive (optionnel)
+DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1apS8SJKooJIp_fW3HBvsIXT2LoffqULh?usp=drive_link"
+DRIVE_DOWNLOAD_ENABLED = False  # Mettre True pour activer le téléchargement auto
 
 # Mapping des mots-clés pour détecter le type de fichier
 VARIABLE_KEYWORDS = {
@@ -29,18 +33,61 @@ def detect_variable_type(filename):
             return var_type
     return "unknown"
 
-def scan_all_rasters():
-    """Scanne tous les fichiers .tif dans le dossier data/"""
+def download_from_drive():
+    """Télécharge les fichiers depuis Google Drive si activé"""
+    if not DRIVE_DOWNLOAD_ENABLED:
+        return False
+    
+    try:
+        import gdown
+        output_dir = "data_drive"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        print(f"📥 Téléchargement depuis Google Drive vers {output_dir}/...")
+        gdown.download_folder(url=DRIVE_FOLDER_URL, output=output_dir, quiet=False, use_cookies=False)
+        print("✅ Téléchargement terminé")
+        return True
+    except ImportError:
+        print("⚠️ gdown non installé. Installer avec: pip install gdown")
+        return False
+    except Exception as e:
+        print(f"❌ Erreur téléchargement Drive: {e}")
+        return False
+
+def scan_all_rasters(force_download=False):
+    """Scanne tous les fichiers .tif dans les dossiers locaux et/ou Drive"""
     raster_files = {}
+    found_files = []
     
-    # Cherche récursivement tous les .tif
-    tif_files = glob.glob(os.path.join(DATA_DIR, "**/*.tif"), recursive=True)
+    # Télécharge depuis Drive si demandé
+    if force_download:
+        download_from_drive()
     
-    for tif_path in tif_files:
+    # Vérifie chaque dossier dans l'ordre de priorité
+    for data_dir in DATA_DIRS:
+        if os.path.exists(data_dir):
+            # Cherche récursivement tous les .tif
+            tif_files = glob.glob(os.path.join(data_dir, "**/*.tif"), recursive=True)
+            found_files.extend(tif_files)
+            if tif_files:
+                print(f"✓ Trouvé {len(tif_files)} fichiers .tif dans {data_dir}/")
+    
+    # Si aucun fichier trouvé et téléchargement activé, tente de télécharger
+    if not found_files and DRIVE_DOWNLOAD_ENABLED and not force_download:
+        print("⚠️ Aucun fichier local, tentative de téléchargement depuis Drive...")
+        if download_from_drive():
+            return scan_all_rasters(force_download=True)  # Rescanne après téléchargement
+    
+    if not found_files:
+        print("⚠️ Aucun fichier .tif trouvé dans:", DATA_DIRS)
+        return raster_files
+    
+    # Classe les fichiers par type de variable
+    for tif_path in found_files:
         filename = os.path.basename(tif_path)
         var_type = detect_variable_type(filename)
         
-        # Stocke par type de variable (garde le dernier si plusieurs)
         if var_type not in raster_files:
             raster_files[var_type] = []
         raster_files[var_type].append(tif_path)
@@ -106,8 +153,31 @@ def list_raster_files():
     
     return jsonify({
         "total_files": sum(len(files) for files in all_rasters.values()),
-        "by_variable": summary
+        "by_variable": summary,
+        "sources": DATA_DIRS,
+        "drive_enabled": DRIVE_DOWNLOAD_ENABLED
     })
+
+# --------------------
+# POST : Forcer le téléchargement depuis Google Drive
+# --------------------
+@environment_bp.route("/download-drive", methods=["POST"])
+def force_download_drive():
+    """Force le téléchargement des fichiers depuis Google Drive"""
+    success = download_from_drive()
+    
+    if success:
+        all_rasters = scan_all_rasters()
+        return jsonify({
+            "message": "Téléchargement terminé",
+            "files_downloaded": sum(len(files) for files in all_rasters.values()),
+            "by_variable": {k: len(v) for k, v in all_rasters.items()}
+        })
+    else:
+        return jsonify({
+            "error": "Échec du téléchargement",
+            "message": "Vérifiez que gdown est installé et que l'URL Drive est correcte"
+        }), 500
 
 # --------------------
 # CREATE : ajouter manuellement une donnée environnementale

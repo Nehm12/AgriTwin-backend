@@ -98,6 +98,29 @@ def calculate_risk_score(temperature, precipitation, ndvi):
     
     return min(100, risk_score), risk_factors
 
+def generate_recommendations(risk_factors, crop_type):
+    """Génère des recommandations basées sur les risques identifiés"""
+    recommendations = []
+    
+    for risk in risk_factors:
+        if "sécheresse" in risk.lower():
+            recommendations.append(f"Mettre en place un système d'irrigation pour {crop_type}")
+            recommendations.append("Utiliser du paillage pour conserver l'humidité du sol")
+        
+        if "stress thermique" in risk.lower():
+            recommendations.append("Installer des ombrières ou filets d'ombrage")
+            recommendations.append("Augmenter la fréquence d'arrosage tôt le matin")
+        
+        if "végétation" in risk.lower():
+            recommendations.append(f"Apporter des engrais adaptés pour {crop_type}")
+            recommendations.append("Vérifier la présence de maladies ou parasites")
+        
+        if "favorable" in risk.lower():
+            recommendations.append("Maintenir les pratiques culturales actuelles")
+            recommendations.append("Surveiller régulièrement l'évolution des conditions")
+    
+    return recommendations if recommendations else ["Conditions optimales - Suivre le calendrier cultural standard"]
+
 # --------------------
 # POST : Créer une simulation
 # --------------------
@@ -152,6 +175,15 @@ def create_simulation():
         yield_estimate = calculate_yield(temperature, precipitation, humidity, ndvi, crop_type)
         risk_score, risk_factors = calculate_risk_score(temperature, precipitation, ndvi)
         
+        # Prépare le résumé détaillé
+        import json
+        result_summary = json.dumps({
+            "risk_factors": risk_factors,
+            "risk_level": "Élevé" if risk_score > 50 else "Modéré" if risk_score > 25 else "Faible",
+            "growing_days": (harvest_date - planting_date).days,
+            "recommendations": generate_recommendations(risk_factors, crop_type)
+        }, ensure_ascii=False)
+        
         # Crée la simulation
         simulation = Simulation(
             field_id=field_id,
@@ -160,7 +192,12 @@ def create_simulation():
             harvest_date=harvest_date,
             predicted_yield=yield_estimate,
             scenario=scenario,
-            risk_score=risk_score
+            risk_score=risk_score,
+            avg_temperature=temperature,
+            avg_precipitation=precipitation,
+            avg_humidity=humidity,
+            avg_ndvi=ndvi,
+            result_summary=result_summary
         )
         
         db.session.add(simulation)
@@ -176,6 +213,7 @@ def create_simulation():
                 "risk_score": risk_score,
                 "risk_level": "Élevé" if risk_score > 50 else "Modéré" if risk_score > 25 else "Faible",
                 "risk_factors": risk_factors,
+                "recommendations": generate_recommendations(risk_factors, crop_type),
                 "environmental_conditions": {
                     "temperature_c": temperature,
                     "precipitation_mm": precipitation,
