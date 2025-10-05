@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import Field
+from models import Field, CropType
 from db import db
 
 field_bp = Blueprint('field_bp', __name__)
@@ -54,6 +54,22 @@ def get_field(field_id):
         "crop_type_id": f.crop_type_id
     })
 
+# Récupérer les champs pour l'utilisateur connecté
+@field_bp.route('/user/<int:user_id>', methods=['GET'])
+def get_fields_by_user(user_id):
+    fields = Field.query.filter_by(user_id=user_id).all()
+    return jsonify([{
+        "id": f.id,
+        "user_id": f.user_id,
+        "name": f.name,
+        "lat": f.lat,
+        "lon": f.lon,
+        "area": f.area,
+        "country": f.country,
+        "city": f.city,
+        "crop_type_id": f.crop_type_id
+    } for f in fields])
+
 # Mettre à jour un champ
 @field_bp.route('/<int:field_id>', methods=['PUT'])
 def update_field(field_id):
@@ -76,3 +92,28 @@ def delete_field(field_id):
     db.session.delete(f)
     db.session.commit()
     return jsonify({"message": "Champ supprimé"})
+
+# Route pour les types de culture
+@field_bp.route('/crops', methods=['GET'])
+def get_crops():
+    crops = CropType.query.all()
+    return jsonify([{
+        "id": crop.id,
+        "name": crop.name,
+        "optimal_temp": crop.optimal_temp,
+        "optimal_soil_moisture": crop.optimal_soil_moisture,
+        "cycle_days": crop.cycle_days,
+    } for crop in crops])
+    
+@field_bp.route("/fields", methods=["GET"])
+def get_all_fields():
+    """Retourne tous les champs"""
+    fields = Field.query.all()
+    return jsonify([{
+        'id': field.id,
+        'name': field.name,
+        'crop_type': field.crop_type,
+        'area': field.area,
+        'lat': field.lat,
+        'lon': field.lon
+    } for field in fields])     

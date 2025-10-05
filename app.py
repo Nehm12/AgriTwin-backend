@@ -10,6 +10,7 @@ from routes.history import history_bp
 from routes.simulation import simulation_bp
 from routes.alert import alert_bp
 from routes.chatbot import chatbot_bp
+from routes.crops import crop_bp
 
 
 # Initialisation de l'application Flask
@@ -29,6 +30,7 @@ app.register_blueprint(history_bp, url_prefix='/history')
 app.register_blueprint(simulation_bp, url_prefix='/simulation')
 app.register_blueprint(alert_bp, url_prefix='/alerts')
 app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
+app.register_blueprint(crop_bp, url_prefix='/crops')
 
 
 
