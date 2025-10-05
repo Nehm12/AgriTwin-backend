@@ -23,7 +23,7 @@ def create_user():
     return jsonify({"message": "Utilisateur créé", "id": user.id})
 
 # Connexion utilisateur
-@user_bp.route("/login", methods=['POST'])
+@user_bp.route('/login', methods=['POST'])
 def login():
     data = request.json
     user = User.query.filter_by(phone=data['phone']).first()
@@ -78,7 +78,7 @@ def update_user(user_id):
     u.phone = data.get('phone', u.phone)
     u.language = data.get('language', u.language)
     if data.get('password'):
-        u.password = generate_password_hash(data['password'], method='pbkdf2:sha256')
+        u.password = generate_password_hash(data['password'], method='sha256')
     db.session.commit()
     return jsonify({"message": "Utilisateur mis à jour"})
 
