@@ -23,7 +23,7 @@ def create_field():
     return jsonify({"message": "Champ créé", "id": field.id})
 
 # Lister tous les champs
-@crop_bp.route('/', methods=['GET'])
+@crop_bp.route('/get', methods=['GET'])
 def get_crops():
     crops = CropType.query.all()
     return jsonify([{

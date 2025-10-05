@@ -69,6 +69,23 @@ def update_field(field_id):
     db.session.commit()
     return jsonify({"message": "Champ mis à jour"})
 
+# Récupérer tous les champs d'un utilisateur
+@field_bp.route('/user/<int:user_id>', methods=['GET'])
+def get_user_fields(user_id):
+    fields = Field.query.filter_by(user_id=user_id).all()
+    return jsonify([{
+        "id": f.id,
+        "user_id": f.user_id,
+        "name": f.name,
+        "lat": f.lat,
+        "lon": f.lon,
+        "area": f.area,
+        "country": f.country,
+        "city": f.city,
+        "crop_type_id": f.crop_type_id
+    } for f in fields])
+    
+    
 # Supprimer un champ
 @field_bp.route('/<int:field_id>', methods=['DELETE'])
 def delete_field(field_id):

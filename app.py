@@ -12,6 +12,7 @@ from routes.alert import alert_bp
 from routes.chatbot import chatbot_bp
 from routes.forecast import forecast_bp
 from routes.environment import environment_bp
+from routes.crops import crop_bp
 
 # Initialisation de l'application Flask
 app = Flask(__name__)
@@ -29,6 +30,7 @@ app.register_blueprint(alert_bp, url_prefix='/alerts')
 app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
 app.register_blueprint(forecast_bp, url_prefix='/forecast')
 app.register_blueprint(environment_bp, url_prefix='/environment')
+app.register_blueprint(crop_bp, url_prefix='/crops')
 
 # Flag pour initialisation unique
 initialized = False
