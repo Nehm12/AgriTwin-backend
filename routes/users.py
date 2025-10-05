@@ -22,13 +22,32 @@ def create_user():
     db.session.commit()
     return jsonify({"message": "Utilisateur créé", "id": user.id})
 
+
+
 # Connexion utilisateur
-@user_bp.route('/login', methods=['POST'])
+@user_bp.route("/login", methods=['POST'])
 def login():
     data = request.json
+    
+    # Debug: afficher les données reçues
+    print("Données reçues:", data)
+    
+    # Vérifier si phone est fourni
+    if not data.get('phone'):
+        return jsonify({"message": "Numéro de téléphone requis"}), 400
+        
     user = User.query.filter_by(phone=data['phone']).first()
-    if not user or not check_password_hash(user.password, data['password']):
-        return jsonify({"message": "Échec de l'authentification"}), 401
+    
+    # Debug
+    print("Utilisateur trouvé:", user)
+    
+    if not user:
+        return jsonify({"message": "Numéro de téléphone incorrect"}), 401
+        
+    # Vérifier le mot de passe
+    if not check_password_hash(user.password, data['password']):
+        return jsonify({"message": "Mot de passe incorrect"}), 401
+        
     return jsonify({
         "message": "Connexion réussie",
         "user": {
@@ -40,7 +59,9 @@ def login():
             "language": user.language
         }
     })
-
+    
+    
+    
 # Lister tous les utilisateurs
 @user_bp.route('/', methods=['GET'])
 def get_users():
@@ -89,3 +110,16 @@ def delete_user(user_id):
     db.session.delete(u)
     db.session.commit()
     return jsonify({"message": "Utilisateur supprimé"})
+
+#Mettre à jour le mot de passe
+@user_bp.route('/<int:user_id>/password', methods=['PUT'])
+def update_password(user_id):
+    u = User.query.get_or_404(user_id)
+    data = request.json
+    if not data.get('oldpassword') or not data.get('password'):
+        return jsonify({"message": "Ancien et nouveau mot de passe requis"}), 400
+    if not check_password_hash(u.password, data['oldpassword']):
+        return jsonify({"message": "Ancien mot de passe incorrect"}), 401
+    u.password = generate_password_hash(data['password'], method='sha256')
+    db.session.commit()
+    return jsonify({"message": "Mot de passe mis à jour"})
