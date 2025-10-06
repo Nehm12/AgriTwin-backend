@@ -2,7 +2,7 @@ from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 from db import init_db
 from models import User, Field, CropType, History
-
+import os
 # Import des routes
 from routes.users import user_bp
 from routes.fields import field_bp
@@ -14,9 +14,19 @@ from routes.forecast import forecast_bp
 from routes.environment import environment_bp
 from routes.crops import crop_bp
 
+
 # Initialisation de l'application Flask
 app = Flask(__name__)
 CORS(app)
+
+
+# Utiliser PostgreSQL en production, SQLite en local
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    # Render utilise postgres://, SQLAlchemy 2.0 requiert postgresql://
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+
 
 # Initialisation de la base de données
 db = init_db(app)

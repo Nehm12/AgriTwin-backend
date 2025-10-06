@@ -4,8 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 def init_db(app):
-    # Configuration de la base SQLite locale
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agritwin.db'
+    # Configuration de la base SQLite locale et pg en production
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///agritwin.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Lier SQLAlchemy à l’application Flask
