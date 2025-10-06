@@ -19,7 +19,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Initialisation de la base de données
-db = init_db(app)
+init_db(app)
 
 # Enregistrement des blueprints
 app.register_blueprint(user_bp, url_prefix='/users')
