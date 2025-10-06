@@ -2,7 +2,7 @@ from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 from db import init_db
 from models import User, Field, CropType, History
-import os
+
 # Import des routes
 from routes.users import user_bp
 from routes.fields import field_bp
@@ -14,19 +14,9 @@ from routes.forecast import forecast_bp
 from routes.environment import environment_bp
 from routes.crops import crop_bp
 
-
 # Initialisation de l'application Flask
 app = Flask(__name__)
 CORS(app)
-
-
-# Utiliser PostgreSQL en production, SQLite en local
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    # Render utilise postgres://, SQLAlchemy 2.0 requiert postgresql://
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-
-
 
 # Initialisation de la base de données
 db = init_db(app)
@@ -46,92 +36,78 @@ app.register_blueprint(crop_bp, url_prefix='/crops')
 initialized = False
 initialization_message = ""
 
-def create_tables():
-    """
-    Crée toutes les tables définies dans models.py.
-    """
-    try:
-        print("Création des tables...")
-        db.create_all()
-        print("Tables créées avec succès !")
-    except Exception as e:
-        print(f"Erreur lors de la création des tables : {e}")
-
-def insert_initial_data():
-    """
-    Insère des données initiales dans la base de données.
-    """
-    try:
-        print("Insertion des données initiales...")
-        crops = [
-            {'name': 'Maïs', 'optimal_temp': 25, 'optimal_soil_moisture': 0.3, 'cycle_days': 120},
-            {'name': 'Riz', 'optimal_temp': 28, 'optimal_soil_moisture': 0.5, 'cycle_days': 150},
-            {'name': 'Soja', 'optimal_temp': 24, 'optimal_soil_moisture': 0.35, 'cycle_days': 100},
-            {'name': 'Blé', 'optimal_temp': 20, 'optimal_soil_moisture': 0.25, 'cycle_days': 110},
-            {'name': 'Orge', 'optimal_temp': 18, 'optimal_soil_moisture': 0.22, 'cycle_days': 90},
-            {'name': 'Pommes de terre', 'optimal_temp': 17, 'optimal_soil_moisture': 0.4, 'cycle_days': 120},
-            {'name': 'Tomate', 'optimal_temp': 22, 'optimal_soil_moisture': 0.35, 'cycle_days': 90},
-            {'name': 'Pomme', 'optimal_temp': 16, 'optimal_soil_moisture': 0.3, 'cycle_days': 150},
-            {'name': 'Orange', 'optimal_temp': 25, 'optimal_soil_moisture': 0.3, 'cycle_days': 180},
-            {'name': 'Banane', 'optimal_temp': 28, 'optimal_soil_moisture': 0.5, 'cycle_days': 200},
-            {'name': 'Coton', 'optimal_temp': 27, 'optimal_soil_moisture': 0.3, 'cycle_days': 150},
-            {'name': 'Arachide', 'optimal_temp': 26, 'optimal_soil_moisture': 0.35, 'cycle_days': 120},
-            {'name': 'Café', 'optimal_temp': 22, 'optimal_soil_moisture': 0.4, 'cycle_days': 180},
-            {'name': 'Cacao', 'optimal_temp': 25, 'optimal_soil_moisture': 0.45, 'cycle_days': 180},
-            {'name': 'Pois', 'optimal_temp': 18, 'optimal_soil_moisture': 0.25, 'cycle_days': 80}
-        ]
-
-        added_count = 0
-        for crop in crops:
-            exists = CropType.query.filter_by(name=crop['name']).first()
-            if not exists:
+def seed_crop_types():
+    """Insère les types de cultures si la table est vide"""
+    with app.app_context():
+        if CropType.query.count() == 0:
+            crops = [
+                {'name': 'Maïs', 'optimal_temp': 25, 'optimal_soil_moisture': 0.3, 'cycle_days': 120},
+                {'name': 'Riz', 'optimal_temp': 28, 'optimal_soil_moisture': 0.5, 'cycle_days': 150},
+                {'name': 'Soja', 'optimal_temp': 24, 'optimal_soil_moisture': 0.35, 'cycle_days': 100},
+                {'name': 'Blé', 'optimal_temp': 20, 'optimal_soil_moisture': 0.25, 'cycle_days': 110},
+                {'name': 'Orge', 'optimal_temp': 18, 'optimal_soil_moisture': 0.22, 'cycle_days': 90},
+                {'name': 'Pommes de terre', 'optimal_temp': 17, 'optimal_soil_moisture': 0.4, 'cycle_days': 120},
+                {'name': 'Tomate', 'optimal_temp': 22, 'optimal_soil_moisture': 0.35, 'cycle_days': 90},
+                {'name': 'Pomme', 'optimal_temp': 16, 'optimal_soil_moisture': 0.3, 'cycle_days': 150},
+                {'name': 'Orange', 'optimal_temp': 25, 'optimal_soil_moisture': 0.3, 'cycle_days': 180},
+                {'name': 'Banane', 'optimal_temp': 28, 'optimal_soil_moisture': 0.5, 'cycle_days': 200},
+                {'name': 'Coton', 'optimal_temp': 27, 'optimal_soil_moisture': 0.3, 'cycle_days': 150},
+                {'name': 'Arachide', 'optimal_temp': 26, 'optimal_soil_moisture': 0.35, 'cycle_days': 120},
+                {'name': 'Café', 'optimal_temp': 22, 'optimal_soil_moisture': 0.4, 'cycle_days': 180},
+                {'name': 'Cacao', 'optimal_temp': 25, 'optimal_soil_moisture': 0.45, 'cycle_days': 180},
+                {'name': 'Pois', 'optimal_temp': 18, 'optimal_soil_moisture': 0.25, 'cycle_days': 80}
+            ]
+            
+            for crop in crops:
                 db.session.add(CropType(**crop))
-                added_count += 1
+            
+            db.session.commit()
+            print(f"{len(crops)} types de cultures insérés")
 
-        db.session.commit()
-        if added_count > 0:
-            print(f"{added_count} cultures ajoutées à la base de données.")
-        else:
-            print("Toutes les cultures sont déjà présentes.")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Erreur lors de l'insertion des données initiales : {e}")
+# Exécuter le seeding au démarrage (une seule fois)
+seed_crop_types()
+@app.route('/seed-test-data')
+def seed_test_data():
+    """Endpoint pour créer des données de test (dev uniquement)"""
+    if app.debug:  # Seulement en mode debug
+        try:
+            print("Insertion d'un utilisateur et d'un champ agricole...")
 
-def insert_user_and_field():
-    """
-    Insère un utilisateur et un champ agricole pour tester les relations.
-    """
-    try:
-        print("Insertion d'un utilisateur et d'un champ agricole...")
-        user = User(
-            lastname="Dupont",
-            firstname="Jean",
-            email="jean.dupont@example.com",
-            phone="0123456789",
-            password="hashed_password",
-            language="fr"
-        )
-        db.session.add(user)
-        db.session.commit()
+            user = User(
+                lastname="Dupont",
+                firstname="Jean",
+                email="jean.dupont@example.com",
+                phone="0123456789",
+                password="hashed_password",
+                language="fr"
+            )
+            db.session.add(user)
+            db.session.commit()
 
-        field = Field(
-            user_id=user.id,
-            name="Champ de maïs",
-            lat=12.34,
-            lon=56.78,
-            area=10.5,
-            country="France",
-            city="Paris",
-            crop_type_id=1  # Associe le champ à la culture "Maïs"
-        )
-        db.session.add(field)
-        db.session.commit()
+            field = Field(
+                user_id=user.id,
+                name="Champ de maïs",
+                lat=12.34,
+                lon=56.78,
+                area=10.5,
+                country="France",
+                city="Paris",
+                crop_type_id=1  # Associe le champ à la culture "Maïs"
+            )
+            db.session.add(field)
+            db.session.commit()
 
-        print(f"Utilisateur ajouté avec succès (ID : {user.id})")
-        print(f"Champ agricole ajouté avec succès (ID : {field.id})")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Erreur lors de l'insertion de l'utilisateur et du champ agricole : {e}")
+            print(f"✅ Utilisateur ajouté avec succès (ID : {user.id})")
+            print(f"✅ Champ agricole ajouté avec succès (ID : {field.id})")
+
+            return {"message": "Données de test insérées avec succès."}, 200
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Erreur lors de l'insertion : {e}")
+            return {"error": str(e)}, 500
+    else:
+        return {"error": "L'opération n'est autorisée qu'en mode debug."}, 403
 
 
 # Route d'accueil
@@ -188,17 +164,16 @@ def api_status_json():
 def api_status_page():
     return render_template('api_status.html')
 
+
+@app.route('/health')
+def health():
+    """Health check endpoint pour Render"""
+    return jsonify({"status": "healthy"}), 200
+
 # Lancement du serveur
 if __name__ == '__main__':
-    with app.app_context():
-        # Crée les tables dans la base de données
-        create_tables()
-
-        # Insère les données initiales
-        insert_initial_data()
-
-        # Insère un utilisateur et un champ agricole pour tester
-        insert_user_and_field()
 
     # Démarre le serveur Flask
     app.run(debug=True, host="0.0.0.0", port=5000)
+    
+    
