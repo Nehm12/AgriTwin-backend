@@ -2,6 +2,7 @@
 from flask import Blueprint, jsonify, request
 from models import Field, EnvironmentalData, ForecastData
 from db import db
+from utils.notification_utils import create_alert
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -149,6 +150,24 @@ def get_weather_forecast(field_id):
     dates = [(datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d") 
              for i in range(1, days + 1)]
     
+    # Déclenchement d'alertes météo prévues
+    try:
+        temps = forecasts["temperature"] if forecasts and "temperature" in forecasts else []
+        precs = forecasts["precipitation"] if forecasts and "precipitation" in forecasts else []
+        if temps:
+            if max(temps) >= 35:
+                create_alert(field_id=field_id, type="heat_warning_forecast", message=f"Canicule prévue: max {max(temps):.1f}°C sur {days} jours pour '{field.name}'.", channels=["in_app"]) 
+            if min(temps) <= 0:
+                create_alert(field_id=field_id, type="frost_warning_forecast", message=f"Gel possible: min {min(temps):.1f}°C sur {days} jours pour '{field.name}'.", channels=["in_app", "sms"]) 
+        if precs:
+            if max(precs) >= 100:
+                create_alert(field_id=field_id, type="heavy_rain_forecast", message=f"Fortes pluies prévues: pic {max(precs):.1f} mm sur {days} jours pour '{field.name}'.", channels=["in_app"]) 
+            avg_prec = sum(precs)/len(precs)
+            if avg_prec <= 20:
+                create_alert(field_id=field_id, type="drought_risk_forecast", message=f"Précipitations faibles attendues (moy {avg_prec:.1f} mm) sur {days} jours pour '{field.name}'.", channels=["in_app"]) 
+    except Exception:
+        pass
+
     return jsonify({
         "field_id": field_id,
         "field_name": field.name,
@@ -210,6 +229,14 @@ def get_yield_forecast(field_id):
     )
     db.session.add(forecast_entry)
     db.session.commit()
+
+    # Alerte: prévision de rendement générée et éventuellement faible
+    try:
+        create_alert(field_id=field_id, type="yield_forecast_generated", message=f"Nouvelle prévision de rendement: {yield_estimate} (indice) pour '{field.name}'.", channels=["in_app"]) 
+        if yield_estimate is not None and yield_estimate < 40:
+            create_alert(field_id=field_id, type="low_yield_current", message=f"Rendement estimé faible ({yield_estimate}) pour '{field.name}'.", channels=["in_app", "email"]) 
+    except Exception:
+        pass
     
     return jsonify({
         "field_id": field_id,
@@ -272,6 +299,13 @@ def get_complete_forecast(field_id):
     avg_ndvi = np.mean(weather_forecasts["ndvi"])
     
     future_yield = estimate_yield(avg_temp, avg_prec, avg_ndvi, avg_hum)
+
+    # Alerte: prévision de rendement futur faible
+    try:
+        if future_yield is not None and future_yield < 40:
+            create_alert(field_id=field_id, type="low_yield_forecast", message=f"Prévision de rendement faible ({future_yield}) sur la période pour '{field.name}'.", channels=["in_app", "email"]) 
+    except Exception:
+        pass
     
     return jsonify({
         "field_id": field_id,

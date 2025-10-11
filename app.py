@@ -13,6 +13,7 @@ from routes.chatbot import chatbot_bp
 from routes.forecast import forecast_bp
 from routes.environment import environment_bp
 from routes.crops import crop_bp
+from routes.notification import notification_bp
 
 # Initialisation de l'application Flask
 app = Flask(__name__)
@@ -31,6 +32,7 @@ app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
 app.register_blueprint(forecast_bp, url_prefix='/forecast')
 app.register_blueprint(environment_bp, url_prefix='/environment')
 app.register_blueprint(crop_bp, url_prefix='/crops')
+app.register_blueprint(notification_bp, url_prefix='/notification')
 
 # Flag pour initialisation unique
 initialized = False
@@ -138,7 +140,8 @@ def index():
             "alerts": "/alerts/",
             "chatbot": "/chatbot/",
             "forecast": "/forecast/",
-            "environment": "/environment/"
+            "environment": "/environment/",
+            "notification": "/notification/"
         },
         "check_all": "/api-status"
     })
@@ -154,7 +157,8 @@ def api_status_json():
         "Alerts API": "/alerts/",
         "Chatbot API": "/chatbot/",
         "Forecast API": "/forecast/",
-        "Environment API": "/environment/"
+        "Environment API": "/environment/",
+        "Notification API": "/notification/"
     }
 
     status = {}
