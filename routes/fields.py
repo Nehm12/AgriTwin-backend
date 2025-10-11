@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from models import Field
+from models import Field, Alert
+from utils.notification_utils import create_alert
 from db import db
 
 field_bp = Blueprint('field_bp', __name__)
@@ -20,6 +21,18 @@ def create_field():
     )
     db.session.add(field)
     db.session.commit()
+
+    # Créer une alerte après la création du champ
+    try:
+      create_alert(
+          field_id=field.id,
+          type="field_created",
+          message=f"Nouveau champ créé: {field.name or 'Sans nom'} ({field.lat}, {field.lon})",
+          channels=["in_app"]
+      )
+    except Exception:
+      db.session.rollback()
+
     return jsonify({"message": "Champ créé", "id": field.id})
 
 # Lister tous les champs
@@ -67,8 +80,37 @@ def update_field(field_id):
     f.city = data.get('city', f.city)
     f.crop_type_id = data.get('crop_type_id', f.crop_type_id)
     db.session.commit()
+
+    # Créer une alerte après la mise à jour du champ
+    try:
+      create_alert(
+          field_id=f.id,
+          type="field_updated",
+          message=f"Champ mis à jour: {f.name or 'Sans nom'}",
+          channels=["in_app"]
+      )
+    except Exception:
+      db.session.rollback()
+
     return jsonify({"message": "Champ mis à jour"})
 
+# Récupérer tous les champs d'un utilisateur
+@field_bp.route('/user/<int:user_id>', methods=['GET'])
+def get_user_fields(user_id):
+    fields = Field.query.filter_by(user_id=user_id).all()
+    return jsonify([{
+        "id": f.id,
+        "user_id": f.user_id,
+        "name": f.name,
+        "lat": f.lat,
+        "lon": f.lon,
+        "area": f.area,
+        "country": f.country,
+        "city": f.city,
+        "crop_type_id": f.crop_type_id
+    } for f in fields])
+    
+    
 # Supprimer un champ
 @field_bp.route('/<int:field_id>', methods=['DELETE'])
 def delete_field(field_id):

@@ -1,0 +1,4 @@
+# Ignore large dataset files
+data/India_cropped-area_1km_2001-16.tif
+data/India_cropped-area_1km_2001-16_netCDF.nc
+instance/agritwin.db
