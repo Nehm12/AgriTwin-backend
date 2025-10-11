@@ -116,6 +116,37 @@ class Alert(db.Model):
     # Relation avec le champ
     field = db.relationship('Field', backref=db.backref('alerts', lazy=True))
 
+# État de lecture des alertes (par utilisateur)
+class AlertRead(db.Model):
+    __tablename__ = 'alert_read'
+
+    id = db.Column(db.Integer, primary_key=True)
+    alert_id = db.Column(db.Integer, db.ForeignKey('alert.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    read_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Préférences de notification (par utilisateur)
+class NotificationPreference(db.Model):
+    __tablename__ = 'notification_preference'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), unique=True, nullable=False)
+
+    # Catégories
+    irrigation = db.Column(db.Boolean, default=True)
+    fertilization = db.Column(db.Boolean, default=True)
+    climate = db.Column(db.Boolean, default=True)
+    pestDisease = db.Column(db.Boolean, default=True)
+
+    # Canaux
+    in_app = db.Column(db.Boolean, default=True)
+    sms = db.Column(db.Boolean, default=False)
+    whatsapp = db.Column(db.Boolean, default=False)
+    email = db.Column(db.Boolean, default=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 # 🤖 Chatbot messages ou logs
 class ChatbotMessage(db.Model):

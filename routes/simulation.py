@@ -1,7 +1,8 @@
 # routes/simulation.py
 from flask import Blueprint, jsonify, request
-from models import Field, EnvironmentalData, Simulation
+from models import Field, EnvironmentalData, Simulation, Alert
 from db import db
+from utils.notification_utils import create_alert
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -202,7 +203,27 @@ def create_simulation():
         
         db.session.add(simulation)
         db.session.commit()
-        
+
+        # Création automatique d'une alerte liée à la simulation
+        try:
+            risk_level = "Élevé" if risk_score > 50 else "Modéré" if risk_score > 25 else "Faible"
+            alert_message = f"Simulation créée pour le champ '{field.name}'. Rendement prédit: {yield_estimate} t/ha. Niveau de risque: {risk_level}."
+            create_alert(
+                field_id=field_id,
+                type="simulation_result",
+                message=alert_message,
+                channels=["in_app"]
+            )
+            if risk_score and risk_score > 50:
+                create_alert(
+                    field_id=field_id,
+                    type="high_risk",
+                    message=f"Risque élevé détecté sur '{field.name}' (score {risk_score}). Actions recommandées disponibles.",
+                    channels=["in_app", "email", "sms"]
+                )
+        except Exception:
+            db.session.rollback()
+
         return jsonify({
             "message": "Simulation créée avec succès",
             "simulation_id": simulation.id,

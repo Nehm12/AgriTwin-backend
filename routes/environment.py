@@ -1,7 +1,8 @@
 # routes/environment.py
 from flask import Blueprint, jsonify, request
-from models import EnvironmentalData, Field
+from models import EnvironmentalData, Field, Alert
 from db import db
+from utils.notification_utils import create_alert
 from utils.raster_utils import extract_value_from_tiff
 from datetime import datetime
 import os
@@ -126,6 +127,28 @@ def get_environment(field_id):
         except Exception as e:
             data[var_type] = None
             file_details[var_type] = {"error": str(e)}
+
+    # Détection de conditions à risque et création d'alertes
+    try:
+        ndvi = data.get('ndvi')
+        temp = data.get('temperature')
+        precip = data.get('precipitation')
+        wind = data.get('wind_speed')
+
+        if ndvi is not None and ndvi < 0.3:
+            create_alert(field_id=field.id, type='ndvi_low', message=f"NDVI faible ({ndvi:.2f}) détecté pour le champ '{field.name}'.", channels=["in_app"]) 
+        if temp is not None and temp <= 0:
+            create_alert(field_id=field.id, type='frost_warning', message=f"Risque de gel: température prévue {temp:.1f}°C pour le champ '{field.name}'.", channels=["in_app", "sms"]) 
+        if temp is not None and temp >= 35:
+            create_alert(field_id=field.id, type='heat_warning', message=f"Canicule: température prévue {temp:.1f}°C pour le champ '{field.name}'.", channels=["in_app"]) 
+        if precip is not None and precip >= 100:
+            create_alert(field_id=field.id, type='heavy_rain', message=f"Fortes précipitations prévues ({precip:.1f} mm) pour le champ '{field.name}'.", channels=["in_app"]) 
+        if precip is not None and precip <= 20:
+            create_alert(field_id=field.id, type='drought_risk', message=f"Risque de sécheresse: précipitations faibles ({precip:.1f} mm) pour le champ '{field.name}'.", channels=["in_app"]) 
+        if wind is not None and wind >= 10:
+            create_alert(field_id=field.id, type='high_wind', message=f"Vent fort prévu ({wind:.1f} m/s) pour le champ '{field.name}'.", channels=["in_app"]) 
+    except Exception:
+        db.session.rollback()
 
     return jsonify({
         "field_id": field.id,
